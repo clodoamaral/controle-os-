@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importador de OS - Sistema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            padding: 20px;
+        }
+        .box {
+            max-width: 950px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .botao-upload {
+            border: 2px dashed #0056b3;
+            background: #eef5ff;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 25px;
+        }
+        .btn-sql {
+            background-color: #28a745;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            display: block;
+            width: 100%;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .btn-sql:hover {
+            background-color: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #0056b3;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Importador de Ordens de Serviço (G.Works -> Meu Sistema)</h2>
+    <p>Selecione o arquivo CSV que você salvou na pasta Downloads para visualizar os dados desacoplados.</p>
+    
+    <div class="botao-upload" onclick="document.getElementById('arquivoCsv').click()">
+        <strong>📂 Clique aqui para selecionar o arquivo CSV</strong>
+        <input type="file" id="arquivoCsv" accept=".csv" style="display: none;">
+    </div>
+
+    <button id="btnExportarSql" class="btn-sql" style="display: none;">💾 Passo 2: Gerar e Descarregar Arquivo SQL para o SQLite</button>
+
+    <div style="overflow-x: auto;">
+        <table id="tabelaOs" style="display: none;">
+            <thead id="cabecalho"></thead>
+            <tbody id="corpo"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let dadosProcessados = [];
+
+    document.getElementById('arquivoCsv').addEventListener('change', function(evento) {
+        const arquivo = evento.target.files[0];
+        if (!arquivo) return;
+
+        const leitor = new FileReader();
+        leitor.onload = function(e) {
+            const textoDoArquivo = e.target.result;
+            mostrarDadosNaTela(textoDoArquivo);
+        };
+        leitor.readAsText(arquivo, 'ISO-8859-1');
+    });
+
+    function mostrarDadosNaTela(texto) {
+        const linhas = texto.split(/\r?\n/);
+        const cabecalhoTabela = document.getElementById('cabecalho');
+        const corpoTabela = document.getElementById('corpo');
+        const tabela = document.getElementById('tabelaOs');
+        const btnSql = document.getElementById('btnExportarSql');
+
+        cabecalhoTabela.innerHTML = '';
+        corpoTabela.innerHTML = '';
+        dadosProcessados = [];
+
+        if (linhas.length === 0) return;
+
+        // Títulos das colunas
+        const colunasTituladas = linhas[0].split(';');
+        let linhaTr = document.createElement('tr');
+        colunasTituladas.forEach(titulo => {
+            let th = document.createElement('th');
+            th.textContent = titulo.replace(/"/g, '').trim();
+            linhaTr.appendChild(th);
+        });
+        cabecalhoTabela.appendChild(linhaTr);
+
+        // Linhas de dados das OS
+        for (let i = 1; i < linhas.length; i++) {
+            if (linhas[i].trim() === '') continue;
+
+            const dadosDaLinha = linhas[i].split(';');
+            dadosProcessados.push(dadosDaLinha);
+
+            let linhaTrDados = document.createElement('tr');
+            dadosDaLinha.forEach(informacao => {
+                let td = document.createElement('td');
+                td.textContent = informacao.replace(/"/g, '').trim();
+                linhaTrDados.appendChild(td);
+            });
+            corpoTabela.appendChild(linhaTrDados);
+        }
+
+        // Exibe a tabela e força o botão verde a aparecer bem no topo dela!
+        tabela.style.display = 'table';
+        btnSql.style.display = 'block'; 
+    }
+
+    // Gerador do arquivo SQL
+    document.getElementById('btnExportarSql').addEventListener('click', function() {
+        if (dadosProcessados.length === 0) return;
+
+        let scriptSql = "";
+        
+        dadosProcessados.forEach(linha => {
+            const nro_os = linha[0] ? linha[0].replace(/"/g, '').trim() : '';
+            const nome_cliente = linha[1] ? linha[1].replace(/"/g, '').trim().replace(/'/g, "''") : '';
+            const titulo = linha[2] ? linha[2].replace(/"/g, '').trim().replace(/'/g, "''") : '';
+            const dt_previsao = linha[3] ? linha[3].replace(/"/g, '').trim() : '';
+            const emissao = linha[4] ? linha[4].replace(/"/g, '').trim() : '';
+            const qtd_prod = linha[5] ? parseInt(linha[5].replace(/"/g, '').trim()) || 0 : 0;
+            const qtd_baixada = linha[6] ? parseInt(linha[6].replace(/"/g, '').trim()) || 0 : 0;
+
+            if(nro_os) {
+                scriptSql += `INSERT OR IGNORE INTO ordens_servico (nro_os, nome_cliente, titulo, dt_previsao, emissao, qtd_producao, qtd_baixada) VALUES ('${nro_os}', '${nome_cliente}', '${titulo}', '${dt_previsao}', '${emissao}', ${qtd_prod}, ${qtd_baixada});\n`;
+            }
+        });
+
+        const blob = new Blob([scriptSql], { type: 'text/sql' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'importar_ordens.sql';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+</script>
+
+</body>
+</html>
