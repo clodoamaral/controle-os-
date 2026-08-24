@@ -1,6 +1,39 @@
+:root {
+  --bg-sidebar: #2C3E50;       
+  --bg-main: #F8F9FA;          
+  --status-open: #007BFF;      
+  --status-production: #FD7E14;
+  --status-done: #28A745;      
+  --status-urgent: #DC3545;    
+}
+
+/* Força a cor de fundo padrão e o menu lateral do sistema */
+body {
+  background-color: var(--bg-main) !important;
+  color: #333333;
+}
+
+aside, nav, .sidebar {
+  background-color: var(--bg-sidebar) !important;
+  color: #ffffff !important;
+}
+
 /* tailwindcss base */
 @import "tailwindcss/base";
 /* tailwindcss components */
 @import "tailwindcss/components";
 /* tailwindcss utilities */
 @import "tailwindcss/utilities";
+
+/* 1. Ajusta a primeira coluna (Código) para não esticar a tabela */
+table td:first-child,
+table th:first-child {
+  max-width: 120px;
+  word-break: break-all;
+}
+
+/* 2. Garante que a coluna da Descrição/Nome tenha espaço suficiente */
+table td:nth-child(2),
+table th:nth-child(2) {
+  min-width: 250px;
+}
